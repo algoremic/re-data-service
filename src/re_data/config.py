@@ -29,6 +29,32 @@ class Settings(BaseSettings):
     app_env: str = Field(default="local", validation_alias="APP_ENV")
     redis_url: str = Field(default="", validation_alias="REDIS_URL")
     market_cache_ttl_s: int = Field(default=900, validation_alias="MARKET_CACHE_TTL_S")
+    mongo_uri: str = Field(default="", validation_alias="MONGO_URI")
+    mongo_db: str = Field(default="RECALMI", validation_alias="MONGO_DB")
+    mongo_collection_ready: str = Field(default="ready", validation_alias="MONGO_COLLECTION_READY")
+    mongo_collection_offplan: str = Field(
+        default="off-plan", validation_alias="MONGO_COLLECTION_OFFPLAN"
+    )
+    # ST-053: admin reload auth (fail-closed when empty)
+    data_service_token: str = Field(default="", validation_alias="DATA_SERVICE_TOKEN")
+    # ST-053: max seconds for one reload ingest before timeout; must be > 0
+    max_reload_s: float = Field(default=300.0, validation_alias="MAX_RELOAD_S", gt=0)
+    # SEC-ENG-ST-053 / AVAIL-01: min seconds between reload attempts (0 disables)
+    admin_reload_cooldown_s: float = Field(
+        default=5.0, validation_alias="ADMIN_RELOAD_COOLDOWN_S", ge=0
+    )
+
+    @field_validator("data_service_token", mode="before")
+    @classmethod
+    def _norm_token(cls, v: object) -> str:
+        return str(v or "").strip()
+
+    @field_validator("data_service_token", mode="after")
+    @classmethod
+    def _check_token_len(cls, v: str) -> str:
+        if len(v) > 512:
+            raise ValueError("DATA_SERVICE_TOKEN must be at most 512 characters")
+        return v
 
     @field_validator("dld_area_unit", mode="before")
     @classmethod

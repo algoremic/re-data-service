@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from typing import Literal
@@ -17,6 +17,26 @@ DetectedSchema = Literal[
     "residential_sale_index",
     "unknown",
 ]
+
+
+@dataclass(frozen=True)
+class CompRecord:
+    """One accepted transaction row, retained alongside the grouped ppsf aggregates.
+
+    Populated from the same parsed values used by `_accept_row` today — no
+    re-calculation. See ADR-016 for the area-keyed index this record feeds.
+    """
+
+    transaction_date: str | None  # ISO YYYY-MM-DD; null when unparseable
+    price_aed: Decimal
+    size_sqft: Decimal
+    aed_per_sqft: Decimal
+    emirate: str  # normalized lowercase (key_tuple output)
+    area: str  # normalized lowercase canonical
+    building: str  # normalized; "" when absent
+    unit_type: str  # normalized; "" when absent
+    bedrooms: int  # 0 = unspecified
+    transaction_id: str | None  # DLD schema only; null otherwise
 
 
 @dataclass(frozen=True)
@@ -75,6 +95,7 @@ class TotalsSummary:
     index_loaded: bool
     index_snapshot_count: int
     latest_transaction_date: str | None
+    comp_record_count: int = 0  # ADR-016 — total CompRecords across all areas
 
 
 @dataclass(frozen=True)
@@ -88,3 +109,6 @@ class DatasetSnapshot:
     index: dict[IndexKey, IndexSnapshot]
     totals: TotalsSummary
     duplicate_content_hashes: tuple[DuplicateHashGroup, ...]
+    comp_records_by_area: dict[str, tuple[CompRecord, ...]] = field(  # ADR-016
+        default_factory=dict
+    )

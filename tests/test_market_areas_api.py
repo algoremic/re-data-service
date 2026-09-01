@@ -65,7 +65,9 @@ def test_areas_jvc_alias_value(client_factory, tmp_path):
     """AC-A1.1: JVC canonical area gets 'jvc' as value (longest alias key)."""
     client = _client_with_jvc_data(client_factory, tmp_path)
     body = client.get("/v1/market/areas").json()
-    jvc_item = next((i for i in body["items"] if "jumeirah village circle" in i["label"].lower()), None)
+    jvc_item = next(
+        (i for i in body["items"] if "jumeirah village circle" in i["label"].lower()), None
+    )
     assert jvc_item is not None
     assert jvc_item["value"] == "jvc"
     assert jvc_item["emirate"] == "dubai"
@@ -109,10 +111,25 @@ def test_areas_openapi_route_present(client_factory, tmp_path):
     assert "get" in paths["/v1/market/areas"]
 
 
-def test_no_comps_stub_in_openapi(client_factory, tmp_path):
-    """Q6: /v1/market/comps must NOT exist (deferred to ST-005)."""
+def test_comps_route_in_openapi(client_factory, tmp_path):
+    """AC-4.1: /v1/market/comps is registered in OpenAPI with a typed response schema."""
     settings = make_settings(tmp_path, benchmarks_paths="", index_file="")
     client = client_factory(settings)
     schema = client.get("/openapi.json").json()
     paths = schema.get("paths", {})
-    assert "/v1/market/comps" not in paths
+    assert "/v1/market/comps" in paths
+    assert "get" in paths["/v1/market/comps"]
+    responses = paths["/v1/market/comps"]["get"]["responses"]
+    assert "200" in responses
+
+
+def test_stats_route_in_openapi(client_factory, tmp_path):
+    """AC-4.1: /v1/market/stats/{area} is registered in OpenAPI with a typed response schema."""
+    settings = make_settings(tmp_path, benchmarks_paths="", index_file="")
+    client = client_factory(settings)
+    schema = client.get("/openapi.json").json()
+    paths = schema.get("paths", {})
+    assert "/v1/market/stats/{area}" in paths
+    assert "get" in paths["/v1/market/stats/{area}"]
+    responses = paths["/v1/market/stats/{area}"]["get"]["responses"]
+    assert "200" in responses

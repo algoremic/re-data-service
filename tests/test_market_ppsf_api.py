@@ -130,3 +130,125 @@ def test_ppsf_openapi_route_present(client_factory, tmp_path):
     client = client_factory(settings)
     schema = client.get("/openapi.json").json()
     assert "/v1/market/ppsf" in schema.get("paths", {})
+
+
+def _client_with_building_named_rows(client_factory, tmp_path: Path):
+    """Rows stored with real building names — no building='' key exists.
+
+    This is the real DLD ingest pattern. Uses dld_area_unit=sqft so that
+    PPSF = price / area directly (simpler arithmetic for test assertions).
+    Area-only queries must aggregate across all building-named keys via
+    the _area_level_lookup path.
+    """
+    write_dld_csv(
+        tmp_path / "Transactions_marina.csv",
+        [
+            # Dubai Marina, flat, 2BR — two different buildings; area in sqft
+            "10,2800000,200,Dubai Marina,Elite Residence,flat,2,Sales,Sale,2026-01-10\n",
+            "11,3000000,200,Dubai Marina,Elite Residence,flat,2,Sales,Sale,2026-01-15\n",
+            "12,2600000,200,Dubai Marina,Princess Tower,flat,2,Sales,Sale,2026-01-20\n",
+        ],
+    )
+    paths = str(tmp_path / "Transactions_marina.csv")
+    settings = make_settings(
+        tmp_path,
+        benchmarks_paths=paths,
+        index_file="",
+        dld_area_unit="sqft",
+        ppsf_max="20000",
+    )
+    return client_factory(settings)
+
+
+def test_ppsf_area_only_with_building_named_rows_found(client_factory, tmp_path):
+    """Regression AC: area query returns found=true when data is keyed by building.
+
+    Previously returned found=false because lookup only probed building='' keys.
+    """
+    client = _client_with_building_named_rows(client_factory, tmp_path)
+    resp = client.get("/v1/market/ppsf?area=dubai+marina")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["found"] is True
+    assert body["sample_size"] == 3
+    assert body["matched_key"]["building"] == ""  # area-level aggregate
+
+
+def test_ppsf_area_only_aggregates_all_buildings(client_factory, tmp_path):
+    """Median PPSF is computed from all building rows: [13000, 14000, 15000] → 14000."""
+    client = _client_with_building_named_rows(client_factory, tmp_path)
+    body = client.get("/v1/market/ppsf?area=dubai+marina").json()
+    assert body["found"] is True
+    # sqft unit: 2800000/200=14000, 3000000/200=15000, 2600000/200=13000 → median=14000
+    assert Decimal(body["aed_per_sqft"]) == Decimal("14000")
+
+
+def test_ppsf_miss_response_not_cached(client_factory, tmp_path):
+    """found=false responses must not be cached (stale Redis misses survive deploys)."""
+    client = _client_with_building_named_rows(client_factory, tmp_path)
+    # First call for unknown area → found=false
+    resp1 = client.get("/v1/market/ppsf?area=unknown+xyz+area")
+    assert resp1.json()["found"] is False
+    # Second call for same params — must still be 200 (router still handles it)
+    resp2 = client.get("/v1/market/ppsf?area=unknown+xyz+area")
+    assert resp2.status_code == 200
+    assert resp2.json()["found"] is False
+
+
+def _client_with_villa_only_area(client_factory, tmp_path: Path):
+    """Villa-heavy area with no flat/apartment rows (calculator default typology miss)."""
+    write_dld_csv(
+        tmp_path / "Transactions_villa.csv",
+        [
+            "20,4200000,1000,Abu Hail,Villa A,villa,4,Sales,Sale,2026-01-10\n",
+            "21,4800000,1000,Abu Hail,Villa B,villa,5,Sales,Sale,2026-01-15\n",
+            "22,4500000,1000,Abu Hail,Villa C,villa,4,Sales,Sale,2026-01-20\n",
+        ],
+    )
+    settings = make_settings(
+        tmp_path,
+        benchmarks_paths=str(tmp_path / "Transactions_villa.csv"),
+        index_file="",
+        dld_area_unit="sqft",
+        ppsf_max="20000",
+    )
+    return client_factory(settings)
+
+
+def test_ppsf_relaxes_unit_type_when_apartment_missing(client_factory, tmp_path):
+    """Calculator sends apartment+bedrooms by default; villa-only areas must still resolve.
+
+    Progressive relaxation: apartment+beds miss → apartment miss → area-wide hit.
+    """
+    client = _client_with_villa_only_area(client_factory, tmp_path)
+    body = client.get(
+        "/v1/market/ppsf?emirate=dubai&area=abu+hail&unit_type=apartment&bedrooms=1"
+    ).json()
+    assert body["found"] is True
+    assert body["sample_size"] == 3
+    assert Decimal(body["aed_per_sqft"]) == Decimal("4500")
+
+
+def test_ppsf_area_alias_candidate_tried_when_first_key_empty(client_factory, tmp_path):
+    """Alias expansion: 'dubai hills' must resolve to 'dubai hills estate' comps."""
+    write_dld_csv(
+        tmp_path / "Transactions_hills.csv",
+        [
+            "30,3000000,200,Dubai Hills Estate,Tower A,flat,2,Sales,Sale,2026-01-10\n",
+            "31,3200000,200,Dubai Hills Estate,Tower B,flat,2,Sales,Sale,2026-01-12\n",
+        ],
+    )
+    settings = make_settings(
+        tmp_path,
+        benchmarks_paths=str(tmp_path / "Transactions_hills.csv"),
+        index_file="",
+        dld_area_unit="sqft",
+        ppsf_max="20000",
+    )
+    client = client_factory(settings)
+    body = client.get(
+        "/v1/market/ppsf?emirate=dubai&area=dubai+hills&unit_type=apartment&bedrooms=2"
+    ).json()
+    assert body["found"] is True
+    assert body["sample_size"] == 2
+    assert body["matched_key"]["area"] == "dubai hills estate"

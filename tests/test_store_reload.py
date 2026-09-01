@@ -31,7 +31,9 @@ def test_zero_valid_rows_degraded(tmp_path):
         tmp_path / "Transactions.csv",
         ["1,1000000,100,Area,B,flat,1,Mortgages,Mortgage,2026-01-01\n"],
     )
-    settings = make_settings(tmp_path, benchmarks_paths=str(tmp_path / "Transactions.csv"), index_file="")
+    settings = make_settings(
+        tmp_path, benchmarks_paths=str(tmp_path / "Transactions.csv"), index_file=""
+    )
     store = DatasetStore(settings)
     store.initial_load()
     snap = store.get_active()
@@ -49,7 +51,13 @@ def test_content_change_new_version_same_bytes_same_version(tmp_path):
     v2 = run_ingest(settings).version
     assert v1 == v2
 
-    write_dld_csv(csv_path, ["1,2000000,100,Dubai Marina,Tower,flat,2,Sales,Sale,2026-01-01\n", "2,3000000,100,JVC,T,flat,1,Sales,Sale,2026-01-02\n"])
+    write_dld_csv(
+        csv_path,
+        [
+            "1,2000000,100,Dubai Marina,Tower,flat,2,Sales,Sale,2026-01-01\n",
+            "2,3000000,100,JVC,T,flat,1,Sales,Sale,2026-01-02\n",
+        ],
+    )
     v3 = run_ingest(settings).version
     assert v3 != v1
 

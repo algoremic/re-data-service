@@ -9,6 +9,37 @@ def norm(s: str) -> str:
     return (s or "").strip().lower()
 
 
+def cell_str(x: object) -> str:
+    """Coerce CSV/JSON cell values to a trimmed string; null/blank → "".
+
+    CSV formula injection guard: leading =, +, @, - are stripped to prevent
+    execution in spreadsheet apps (Excel, Google Sheets). Aligned with
+    re-ml-service cell_str per ADR-022.
+    """
+    if x is None:
+        return ""
+    if isinstance(x, bool):
+        return "true" if x else "false"
+    if isinstance(x, float):
+        # Guard NaN/Inf from upstream dumps (JSON normally excludes these).
+        if x != x or x in (float("inf"), float("-inf")):
+            return ""
+        # Avoid trailing .0 noise for whole numbers when possible.
+        if x.is_integer():
+            return str(int(x))
+        return str(x)
+    if isinstance(x, int):
+        return str(x)
+    s = str(x).strip()
+    if s.lower() in {"null", "none", "nan"}:
+        return ""
+    # CSV formula injection guard (ADR-022 required sync with re-ml-service).
+    # Strips leading =, +, @, - to prevent spreadsheet formula execution on export.
+    if s and s[0] in {"=", "+", "@", "-"}:
+        s = s[1:].lstrip()
+    return s
+
+
 def key_tuple(
     emirate: str | None,
     area: str | None,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 
 from re_data.config import Settings
 from re_data.ingest.runner import run_ingest
@@ -13,6 +14,10 @@ class ReloadInProgressError(Exception):
     """Raised when a second reload is requested while one is running."""
 
 
+class ReloadCooldownError(Exception):
+    """Raised when a reload is requested before the cooldown window expires."""
+
+
 class ReloadTimeoutError(Exception):
     """Raised when the ingest worker exceeds the configured reload timeout."""
 
@@ -21,6 +26,8 @@ class DatasetStore:
     def __init__(self, settings: Settings, max_reload_s: float = _DEFAULT_MAX_RELOAD_S) -> None:
         self._settings = settings
         self._max_reload_s = max_reload_s
+        self._reload_cooldown_s = settings.admin_reload_cooldown_s
+        self._last_reload_attempt_at: float = 0.0
         self._active: DatasetSnapshot | None = None
         self._reload_lock = asyncio.Lock()
 
@@ -35,17 +42,22 @@ class DatasetStore:
         self._active = run_ingest(self._settings)
 
     async def reload(self) -> DatasetSnapshot:
+        if self._reload_cooldown_s > 0 and self._last_reload_attempt_at > 0:
+            elapsed = time.monotonic() - self._last_reload_attempt_at
+            if elapsed < self._reload_cooldown_s:
+                raise ReloadCooldownError()
+
         if self._reload_lock.locked():
             raise ReloadInProgressError()
+
+        self._last_reload_attempt_at = time.monotonic()
         async with self._reload_lock:
             try:
                 staging = await asyncio.wait_for(
                     asyncio.to_thread(run_ingest, self._settings),
                     timeout=self._max_reload_s,
                 )
-            except asyncio.TimeoutError:
-                raise ReloadTimeoutError(
-                    f"ingest timed out after {self._max_reload_s}s"
-                )
+            except TimeoutError:
+                raise ReloadTimeoutError(f"ingest timed out after {self._max_reload_s}s")
             self._active = staging
             return staging

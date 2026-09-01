@@ -42,7 +42,9 @@ def test_mortgage_gift_excluded_sale_included(tmp_path):
             "3,2000000,100,Dubai Marina,Tower,flat,2,Sales,Sale,2026-01-01\n",
         ],
     )
-    settings = make_settings(tmp_path, benchmarks_paths=str(tmp_path / "Transactions.csv"), index_file="")
+    settings = make_settings(
+        tmp_path, benchmarks_paths=str(tmp_path / "Transactions.csv"), index_file=""
+    )
     snap = run_ingest(settings)
     f = next(x for x in snap.files if x.name == "Transactions.csv")
     assert f.rows_accepted == 1
@@ -91,7 +93,9 @@ def test_ppsf_bounds(tmp_path):
         "3,50000000,1000,Area C,B,flat,1,Sales,Sale,2026-01-01\n",
     ]
     write_dld_csv(tmp_path / "Transactions.csv", rows)
-    settings = make_settings(tmp_path, benchmarks_paths=str(tmp_path / "Transactions.csv"), index_file="")
+    settings = make_settings(
+        tmp_path, benchmarks_paths=str(tmp_path / "Transactions.csv"), index_file=""
+    )
     snap = run_ingest(settings)
     f = next(x for x in snap.files if x.name == "Transactions.csv")
     assert f.rows_accepted == 1
@@ -148,7 +152,9 @@ def test_partial_unparseable_rows(tmp_path):
         "3,2000000,,Area,B,flat,1,Sales,Sale,2026-01-01\n",
     ]
     write_dld_csv(tmp_path / "Transactions.csv", rows)
-    settings = make_settings(tmp_path, benchmarks_paths=str(tmp_path / "Transactions.csv"), index_file="")
+    settings = make_settings(
+        tmp_path, benchmarks_paths=str(tmp_path / "Transactions.csv"), index_file=""
+    )
     snap = run_ingest(settings)
     f = next(x for x in snap.files if x.name == "Transactions.csv")
     assert f.status == "partial"
@@ -160,7 +166,9 @@ def test_over_fifty_percent_unparseable_failed(tmp_path):
     rows = ["1,2000000,100,Area,B,flat,1,Sales,Sale,2026-01-01\n"]
     rows += ["2,,100,Area,B,flat,1,Sales,Sale,2026-01-01\n"] * 3
     write_dld_csv(tmp_path / "Transactions.csv", rows)
-    settings = make_settings(tmp_path, benchmarks_paths=str(tmp_path / "Transactions.csv"), index_file="")
+    settings = make_settings(
+        tmp_path, benchmarks_paths=str(tmp_path / "Transactions.csv"), index_file=""
+    )
     snap = run_ingest(settings)
     f = next(x for x in snap.files if x.name == "Transactions.csv")
     assert f.status == "failed"
@@ -209,7 +217,10 @@ def test_ingest_csv_exception_is_logged(tmp_path, caplog):
     write_dld_csv(csv_path, ["1,2000000,100,Dubai Marina,Tower,flat,2,Sales,Sale,2026-01-01\n"])
     settings = make_settings(tmp_path, benchmarks_paths=str(csv_path), index_file="")
 
-    with patch("re_data.ingest.runner.ingest_csv_file", side_effect=RuntimeError("simulated parse crash")):
+    with patch(
+        "re_data.ingest.runner.ingest_transaction_file",
+        side_effect=RuntimeError("simulated parse crash"),
+    ):
         with caplog.at_level(logging.WARNING, logger="re_data.ingest.runner"):
             snap = run_ingest(settings)
 
@@ -225,7 +236,10 @@ def test_index_csv_exception_is_logged(tmp_path, caplog):
     index_path.write_text("bad content\n", encoding="utf-8")
     settings = make_settings(tmp_path, benchmarks_paths=str(csv_path), index_file="index.csv")
 
-    with patch("re_data.ingest.runner.load_residential_sale_index", side_effect=RuntimeError("simulated index crash")):
+    with patch(
+        "re_data.ingest.runner.load_residential_sale_index",
+        side_effect=RuntimeError("simulated index crash"),
+    ):
         with caplog.at_level(logging.WARNING, logger="re_data.ingest.runner"):
             snap = run_ingest(settings)
 

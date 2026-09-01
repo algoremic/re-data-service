@@ -1,24 +1,37 @@
+"""Ingest parity tests — data-service run_ingest on known-good fixtures.
+
+Verifies that the data-service ingest pipeline produces exactly the expected
+transaction keys and PPSF values for a two-file fixture (DLD + recent-transactions
+schema), and that filtered rows (mortgage) are absent.
+
+Forward-compatible with ST-056 TASK-1 (benchmarks.py delete): no dependency on
+realestate-core-service or dubai_re_calc.benchmarks.
+"""
+
 from __future__ import annotations
 
 from decimal import Decimal
-from pathlib import Path
-
-from dubai_re_calc.benchmarks import _ingest_csv
 
 from re_data.ingest.runner import run_ingest
 from tests.conftest import make_settings, write_dld_csv, write_recent_csv
-
-
-def _core_ingest(paths: list[Path]) -> tuple[dict, dict]:
-    grouped: dict = {}
-    last_dates: dict = {}
-    for p in paths:
-        if p.exists():
-            _ingest_csv(p, grouped, last_dates)
-    return grouped, last_dates
+from tests.helpers.parity_reference import (
+    INGEST_PARITY_KEY_JVC,
+    INGEST_PARITY_KEY_MARINA,
+    INGEST_PARITY_KEY_MORTGAGE_FILTERED,
+    INGEST_PARITY_PPSF_JVC,
+    INGEST_PARITY_PPSF_MARINA,
+)
 
 
 def test_parity_with_benchmarks_py(tmp_path, monkeypatch):
+    """Ingest of DLD + recent-transactions CSVs produces correct keys and PPSF values.
+
+    Assertions preserve original test strength:
+    - Both expected keys are present.
+    - No unexpected extra keys (bidirectional coverage).
+    - PPSF values match known-correct Decimal constants within Decimal('0.0001').
+    - The mortgage row is absent (filtered by procedure).
+    """
     write_dld_csv(
         tmp_path / "Transactions.csv",
         [
@@ -35,8 +48,6 @@ def test_parity_with_benchmarks_py(tmp_path, monkeypatch):
     monkeypatch.setenv("PPSF_MIN", "100")
     monkeypatch.setenv("PPSF_MAX", "20000")
 
-    core_grouped, _ = _core_ingest(paths)
-
     settings = make_settings(
         tmp_path,
         benchmarks_paths=f"{paths[0]};{paths[1]}",
@@ -44,12 +55,35 @@ def test_parity_with_benchmarks_py(tmp_path, monkeypatch):
     )
     snap = run_ingest(settings)
 
-    for key, core_vals in core_grouped.items():
-        assert key in snap.transactions
-        data_vals = list(snap.transactions[key])
-        assert len(data_vals) == len(core_vals)
-        for a, b in zip(sorted(data_vals), sorted(core_vals), strict=True):
-            assert abs(a - b) < Decimal("0.0001")
+    # Mortgage row must be absent — filtered by procedure.
+    assert INGEST_PARITY_KEY_MORTGAGE_FILTERED not in snap.transactions, (
+        "mortgage row should be filtered; found in transactions"
+    )
 
-    for key in snap.transactions:
-        assert key in core_grouped
+    # Both accepted rows must be present.
+    assert INGEST_PARITY_KEY_MARINA in snap.transactions, (
+        f"expected key {INGEST_PARITY_KEY_MARINA!r} missing from transactions"
+    )
+    assert INGEST_PARITY_KEY_JVC in snap.transactions, (
+        f"expected key {INGEST_PARITY_KEY_JVC!r} missing from transactions"
+    )
+
+    # Bidirectional: no extra unexpected keys.
+    expected_keys = {INGEST_PARITY_KEY_MARINA, INGEST_PARITY_KEY_JVC}
+    actual_keys = set(snap.transactions.keys())
+    assert actual_keys == expected_keys, (
+        f"unexpected keys in transactions: {actual_keys - expected_keys}"
+    )
+
+    # PPSF values match known-correct constants within tolerance.
+    marina_vals = list(snap.transactions[INGEST_PARITY_KEY_MARINA])
+    assert len(marina_vals) == 1
+    assert abs(marina_vals[0] - INGEST_PARITY_PPSF_MARINA) < Decimal("0.0001"), (
+        f"Marina PPSF mismatch: {marina_vals[0]} vs {INGEST_PARITY_PPSF_MARINA}"
+    )
+
+    jvc_vals = list(snap.transactions[INGEST_PARITY_KEY_JVC])
+    assert len(jvc_vals) == 1
+    assert abs(jvc_vals[0] - INGEST_PARITY_PPSF_JVC) < Decimal("0.0001"), (
+        f"JVC PPSF mismatch: {jvc_vals[0]} vs {INGEST_PARITY_PPSF_JVC}"
+    )

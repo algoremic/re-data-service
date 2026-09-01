@@ -7,10 +7,12 @@ from typing import Any
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 
 from re_data.cache import create_market_cache
 from re_data.config import Settings, get_settings
+from re_data.middleware.request_id import RequestIdMiddleware
 from re_data.routers import admin, dataset, health, market
 from re_data.store.dataset_store import DatasetStore
 
@@ -30,7 +32,7 @@ def _fmt_validation_errors(exc: RequestValidationError) -> list[str]:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
-    store = DatasetStore(settings)
+    store = DatasetStore(settings, max_reload_s=settings.max_reload_s)
     store.initial_load()
     app.state.dataset_store = store
     app.state.settings = settings
@@ -45,6 +47,32 @@ def create_app() -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+
+    app.add_middleware(RequestIdMiddleware)
+
+    # Register BearerAuth security scheme into the generated OpenAPI schema.
+    # The scheme is referenced via openapi_extra={"security": [...]} on the
+    # admin router's reload operation.
+    def _custom_openapi() -> dict[str, Any]:
+        if app.openapi_schema:
+            return app.openapi_schema
+        schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            routes=app.routes,
+        )
+        schema.setdefault("components", {}).setdefault("securitySchemes", {})["BearerAuth"] = {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "opaque",
+            "description": (
+                "DATA_SERVICE_TOKEN — operator-managed shared secret for /v1/admin/* routes"
+            ),
+        }
+        app.openapi_schema = schema
+        return app.openapi_schema
+
+    app.openapi = _custom_openapi  # type: ignore[method-assign]
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(
@@ -66,6 +94,14 @@ def create_app() -> FastAPI:
         elif isinstance(exc.detail, list):
             details = [str(d) for d in exc.detail]
             error = details[0] if details else "Request failed"
+        elif isinstance(exc.detail, dict):
+            error = str(exc.detail.get("error", "Request failed"))
+            raw_details = exc.detail.get("details", [])
+            details = (
+                [str(d) for d in raw_details]
+                if isinstance(raw_details, list)
+                else [str(raw_details)]
+            )
         else:
             error = "Request failed"
             details = [str(exc.detail)]

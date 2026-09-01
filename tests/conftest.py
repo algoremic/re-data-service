@@ -59,6 +59,8 @@ def make_settings(
     ppsf_min: str = "100",
     ppsf_max: str = "20000",
     benchmarks_paths: str | None = None,
+    data_service_token: str = "test-secret",
+    admin_reload_cooldown_s: float = 0.0,
 ) -> Settings:
     if benchmarks_paths is None:
         paths: list[str] = []
@@ -81,14 +83,14 @@ def make_settings(
         ppsf_min=Decimal(ppsf_min),
         ppsf_max=Decimal(ppsf_max),
         app_env="test",
+        data_service_token=data_service_token,
+        admin_reload_cooldown_s=admin_reload_cooldown_s,
     )
 
 
 @pytest.fixture
 def sample_dld_sale_row() -> str:
-    return (
-        "1,2000000,100,Dubai Marina,Tower A,flat,2,Sales,Sale,2026-01-15\n"
-    )
+    return "1,2000000,100,Dubai Marina,Tower A,flat,2,Sales,Sale,2026-01-15\n"
 
 
 @pytest.fixture
@@ -123,6 +125,8 @@ def client_factory():
         os.environ["APP_ENV"] = settings.app_env
         os.environ["REDIS_URL"] = settings.redis_url
         os.environ["MARKET_CACHE_TTL_S"] = str(settings.market_cache_ttl_s)
+        os.environ["DATA_SERVICE_TOKEN"] = settings.data_service_token
+        os.environ["ADMIN_RELOAD_COOLDOWN_S"] = str(settings.admin_reload_cooldown_s)
 
         client = TestClient(create_app())
         client.__enter__()
@@ -133,6 +137,11 @@ def client_factory():
 
     for client in clients:
         client.__exit__(None, None, None)
+
+
+def auth_headers(token: str = "test-secret") -> dict[str, str]:
+    """Return Authorization header dict for the given Bearer token."""
+    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture

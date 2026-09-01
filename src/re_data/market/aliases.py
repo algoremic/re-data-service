@@ -34,8 +34,9 @@ _AREA_ALIASES: dict[str, str] = {
     "jbr": "jumeirah beach residence",
     "marina": "dubai marina",
     "dubai marina": "dubai marina",
-    "downtown": "downtown dubai",
-    "downtown dubai": "downtown dubai",
+    # DLD keys this community as "burj khalifa" (not "downtown dubai").
+    "downtown": "burj khalifa",
+    "downtown dubai": "burj khalifa",
     "jlt": "jumeirah lake towers",
     "difc": "dubai international financial centre",
     "dip": "dubai investment park",
@@ -59,7 +60,9 @@ _AREA_ALIASES: dict[str, str] = {
     "the greens": "the greens",
     "greens": "the greens",
     "the views": "the views",
-    "arabian ranches": "arabian ranches",
+    # Areas list has I/II/III; bare "arabian ranches" maps to the primary phase.
+    "arabian ranches": "arabian ranches i",
+    "arabian ranches i": "arabian ranches i",
     "remraam": "remraam",
     "jumeirah": "jumeirah",
     "al barsha": "al barsha",

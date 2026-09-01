@@ -1,6 +1,9 @@
-"""Parity tests — data-service market logic vs benchmarks.py on shared fixtures.
+"""Parity tests — data-service market logic on known-good fixtures.
 
-Covers AC-A2.4, AC-A3.4, AC-A1.5 (area value parity on transaction subset).
+Covers AC-A2.4, AC-A3.4, AC-A1.5 (area value consistency on transaction subset).
+All assertions are self-contained against static expected values in
+tests/helpers/parity_reference.py — no dependency on realestate-core-service
+benchmarks.py. Forward-compatible with ST-056 TASK-1 (benchmarks.py delete).
 """
 
 from __future__ import annotations
@@ -9,88 +12,49 @@ import math
 from decimal import Decimal
 from pathlib import Path
 
-import pytest
-
 from re_data.ingest.runner import run_ingest
 from re_data.market.lookup import _calc_stat
 from tests.conftest import make_settings, write_dld_csv, write_index_csv
-
-# benchmarks.py lives in realestate-core-service; conftest already adds its src to sys.path.
-try:
-    from dubai_re_calc.benchmarks import (  # type: ignore[import]
-        BenchmarksStore,
-    )
-    from dubai_re_calc.benchmarks import (
-        _calc_stat as core_calc_stat,
-    )
-
-    CORE_AVAILABLE = True
-except ImportError:
-    CORE_AVAILABLE = False
-
-pytestmark = pytest.mark.skipif(
-    not CORE_AVAILABLE,
-    reason="realestate-core-service/src not on sys.path — skipping parity tests",
+from tests.helpers.parity_reference import (
+    EXPECTED_CALC_STAT_N15_CONFIDENCE_APPROX,
+    EXPECTED_CALC_STAT_N15_MEDIAN,
+    EXPECTED_CALC_STAT_N15_N,
+    EXPECTED_INDEX_DATE,
+    EXPECTED_INDEX_VALUE,
+    EXPECTED_JVC_1BR_PPSF_AED_SQFT,
+    EXPECTED_PRICE_INDEX_VALUE,
+    INDEX_ROWS,
+    JVC_ROWS,
 )
 
-
 # ---------------------------------------------------------------------------
-# Shared fixture helpers
+# Shared fixture helper
 # ---------------------------------------------------------------------------
-
-_JVC_ROWS = [
-    # Empty building so key stores building="", which the fallback chain finds.
-    "1,2000000,100,Jumeirah Village Circle,,flat,1,Sales,Sale,2026-01-15\n",
-    "2,2100000,100,Jumeirah Village Circle,,flat,1,Sales,Sale,2026-01-20\n",
-    "3,1900000,100,Jumeirah Village Circle,,flat,1,Sales,Sale,2026-01-25\n",
-    "4,2050000,100,Jumeirah Village Circle,,flat,1,Sales,Sale,2026-01-28\n",
-    "5,2200000,105,Jumeirah Village Circle,,flat,2,Sales,Sale,2026-01-28\n",
-]
-
-_INDEX_ROWS = [
-    "2026-01-01,1.0,1.0,1.1,1.1,1.2,1.2,0.9,0.9,1.0,1.0,1.1,1.1,0.8,0.8,0.9,0.9,1.0,1.0\n",
-    "2026-02-01,1.1,1.1,1.2,1.2,1.3,1.3,1.0,1.0,1.1,1.1,1.2,1.2,0.9,0.9,1.0,1.0,1.1,1.1\n",
-]
 
 
 def _setup_fixture(tmp_path: Path):
-    """Write shared CSVs and return (DatasetSnapshot, BenchmarksStore)."""
-    write_dld_csv(tmp_path / "Transactions.csv", _JVC_ROWS)
-    write_index_csv(tmp_path / "index.csv", _INDEX_ROWS)
+    """Write shared CSVs and return DatasetSnapshot."""
+    write_dld_csv(tmp_path / "Transactions.csv", JVC_ROWS)
+    write_index_csv(tmp_path / "index.csv", INDEX_ROWS)
     paths = str(tmp_path / "Transactions.csv")
     settings = make_settings(tmp_path, benchmarks_paths=paths, index_file="index.csv")
-
-    # data-service ingest
-    snapshot = run_ingest(settings)
-
-    # core benchmarks store (env vars needed by BenchmarksStore.load)
-    import os
-
-    os.environ["BENCHMARKS_CSV_PATHS"] = paths
-    os.environ["INDEX_CSV_PATH"] = str(tmp_path / "index.csv")
-    os.environ.pop("BENCHMARKS_PATH", None)
-    core_store = BenchmarksStore.load()
-    return snapshot, core_store
+    return run_ingest(settings)
 
 
 # ---------------------------------------------------------------------------
-# _calc_stat parity
+# _calc_stat correctness
 # ---------------------------------------------------------------------------
 
 
-def test_calc_stat_trim_matches_core_at_n10(tmp_path):
-    """AC-A2.4 / parity: _calc_stat trim logic identical to benchmarks.py at n≥10."""
-    vals_list = [Decimal(str(100 + i * 10)) for i in range(15)]
-    vals_tuple = tuple(vals_list)
-
-    data_result = _calc_stat(vals_tuple)
-    core_result = core_calc_stat(vals_list)
-
-    assert data_result.median == core_result["median"], (
-        f"median mismatch: {data_result.median} vs {core_result['median']}"
+def test_calc_stat_trim_correctness_at_n15(tmp_path):
+    """AC-A2.4: _calc_stat trim logic produces correct median and n on n=15 inputs."""
+    vals = tuple(Decimal(str(100 + i * 10)) for i in range(15))
+    result = _calc_stat(vals)
+    assert result.median == EXPECTED_CALC_STAT_N15_MEDIAN, (
+        f"median mismatch: {result.median} vs {EXPECTED_CALC_STAT_N15_MEDIAN}"
     )
-    assert data_result.n == core_result["n"]
-    assert math.isclose(data_result.confidence, float(core_result["confidence"]), rel_tol=1e-9)
+    assert result.n == EXPECTED_CALC_STAT_N15_N
+    assert math.isclose(result.confidence, EXPECTED_CALC_STAT_N15_CONFIDENCE_APPROX, rel_tol=1e-9)
 
 
 def test_calc_stat_no_trim_below_10():
@@ -118,17 +82,18 @@ def test_calc_stat_empty():
 
 
 # ---------------------------------------------------------------------------
-# PPSF parity — AC-A2.4
+# PPSF expected values — AC-A2.4
 # ---------------------------------------------------------------------------
 
 
-def test_ppsf_jvc_apartment_1br_matches_core(tmp_path):
-    """AC-A2.4: lookup_ppsf result matches BenchmarksStore.lookup_stat on shared fixture."""
+def test_ppsf_jvc_apartment_1br_expected_value(tmp_path):
+    """AC-A2.4: lookup_ppsf returns known-correct median for the JVC 1BR fixture."""
     from re_data.market.lookup import lookup_ppsf
 
-    snapshot, core_store = _setup_fixture(tmp_path)
-
-    ds_result = lookup_ppsf(
+    write_dld_csv(tmp_path / "Transactions.csv", JVC_ROWS)
+    settings = make_settings(tmp_path, benchmarks_paths=str(tmp_path / "Transactions.csv"))
+    snapshot = run_ingest(settings)
+    result = lookup_ppsf(
         snapshot,
         emirate="dubai",
         area="jvc",
@@ -136,34 +101,18 @@ def test_ppsf_jvc_apartment_1br_matches_core(tmp_path):
         unit_type="apartment",
         bedrooms=1,
     )
-    core_stat = core_store.lookup_stat(
-        emirate="dubai",
-        area="jvc",
-        building=None,
-        unit_type="apartment",
-        bedrooms=1,
+    assert result is not None, "lookup_ppsf returned None for JVC 1BR fixture"
+    assert result.stat.aed_per_sqft == EXPECTED_JVC_1BR_PPSF_AED_SQFT, (
+        f"median mismatch: {result.stat.aed_per_sqft} vs {EXPECTED_JVC_1BR_PPSF_AED_SQFT}"
     )
-
-    assert ds_result is not None, "data-service lookup returned None"
-    assert core_stat is not None, "core lookup returned None"
-
-    # Median should be identical (same raw ppsf values, same trim math)
-    assert ds_result.stat.aed_per_sqft == core_stat.aed_per_sqft, (
-        f"median mismatch: {ds_result.stat.aed_per_sqft} vs {core_stat.aed_per_sqft}"
-    )
-    assert ds_result.stat.sample_size == core_stat.sample_size
-    assert math.isclose(
-        ds_result.stat.confidence or 0.0,
-        core_stat.confidence or 0.0,
-        rel_tol=1e-9,
-    )
+    assert result.stat.sample_size == 4
 
 
 def test_ppsf_nonexistent_area_returns_none(tmp_path):
     """AC-A2.2: lookup for completely absent area returns None."""
     from re_data.market.lookup import lookup_ppsf
 
-    snapshot, _ = _setup_fixture(tmp_path)
+    snapshot = _setup_fixture(tmp_path)
 
     result = lookup_ppsf(
         snapshot,
@@ -177,10 +126,16 @@ def test_ppsf_nonexistent_area_returns_none(tmp_path):
 
 
 def test_ppsf_building_drop_fallback(tmp_path):
-    """AC-A2.3: Querying with non-existent building falls back to broader key."""
+    """AC-A2.3: Querying with non-existent building falls back to broader key.
+
+    After the area-rollup fix the two paths take intentionally different routes:
+    - building-specific query: exact-key chain → drops to building="" key
+    - building=None query: area scan → returns area-level aggregate matched_key
+    Both must hit and return non-None, but their matched_key shapes now differ.
+    """
     from re_data.market.lookup import lookup_ppsf
 
-    snapshot, _ = _setup_fixture(tmp_path)
+    snapshot = _setup_fixture(tmp_path)
 
     result_specific = lookup_ppsf(
         snapshot,
@@ -198,24 +153,35 @@ def test_ppsf_building_drop_fallback(tmp_path):
         unit_type="apartment",
         bedrooms=1,
     )
-    # Both should find results via fallback; broad key matched
     assert result_specific is not None, "building-drop fallback should find a result"
-    assert result_broad is not None
-    # The specific-building query should resolve to the same broader key
-    assert result_specific.matched_key == result_broad.matched_key
+    assert result_broad is not None, "area-only query should find a result via scan"
+    # building-specific fallback resolves to building="" in the stored key
+    assert result_specific.matched_key[2] == "", "specific-building path must drop to building=''"
+    # area-only returns an area-level aggregate key (building="" signals area aggregate)
+    assert result_broad.matched_key[2] == "", "area-only path must return building='' matched_key"
 
 
 def test_ppsf_bedrooms_zero_same_as_none(tmp_path):
     """E-8: bedrooms=0 resolves identically to bedrooms=None."""
     from re_data.market.lookup import lookup_ppsf
 
-    snapshot, _ = _setup_fixture(tmp_path)
+    snapshot = _setup_fixture(tmp_path)
 
     res_zero = lookup_ppsf(
-        snapshot, emirate="dubai", area="jvc", building=None, unit_type="apartment", bedrooms=0
+        snapshot,
+        emirate="dubai",
+        area="jvc",
+        building=None,
+        unit_type="apartment",
+        bedrooms=0,
     )
     res_none = lookup_ppsf(
-        snapshot, emirate="dubai", area="jvc", building=None, unit_type="apartment", bedrooms=None
+        snapshot,
+        emirate="dubai",
+        area="jvc",
+        building=None,
+        unit_type="apartment",
+        bedrooms=None,
     )
     # key_tuple(bedrooms=0) == key_tuple(bedrooms=None) so results should be identical
     if res_zero is not None and res_none is not None:
@@ -225,24 +191,27 @@ def test_ppsf_bedrooms_zero_same_as_none(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Index parity — AC-A3.4
+# Index expected values — AC-A3.4
 # ---------------------------------------------------------------------------
 
 
-def test_index_matches_core(tmp_path):
-    """AC-A3.4: latest_index result matches BenchmarksStore.latest_index on shared fixture."""
+def test_index_expected_value(tmp_path):
+    """AC-A3.4: latest_index returns known-correct date and values from the shared fixture."""
     from re_data.market.index import latest_index
 
-    snapshot, core_store = _setup_fixture(tmp_path)
-
-    ds_snap = latest_index(snapshot, segment="all", horizon="yearly")
-    core_snap = core_store.latest_index(segment="all", horizon="yearly")
-
-    assert ds_snap is not None
-    assert core_snap is not None
-    assert ds_snap.date == core_snap.date
-    assert ds_snap.index_value == core_snap.index_value
-    assert ds_snap.price_index_value == core_snap.price_index_value
+    write_dld_csv(tmp_path / "Transactions.csv", JVC_ROWS)
+    write_index_csv(tmp_path / "index.csv", INDEX_ROWS)
+    settings = make_settings(
+        tmp_path,
+        benchmarks_paths=str(tmp_path / "Transactions.csv"),
+        index_file="index.csv",
+    )
+    snapshot = run_ingest(settings)
+    result = latest_index(snapshot, segment="all", horizon="yearly")
+    assert result is not None
+    assert result.date == EXPECTED_INDEX_DATE
+    assert result.index_value == EXPECTED_INDEX_VALUE
+    assert result.price_index_value == EXPECTED_PRICE_INDEX_VALUE
 
 
 def test_index_absent_when_no_csv(tmp_path):
@@ -262,30 +231,24 @@ def test_index_absent_when_no_csv(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Areas parity — AC-A1.5
+# Areas consistency — AC-A1.5
 # ---------------------------------------------------------------------------
 
 
-def test_areas_transaction_backed_subset_matches_get_area_options(tmp_path):
-    """AC-A1.5: list_areas value keys are a subset of (or equal to) get_area_options keys
-    for areas present in both the transaction dataset and the alias map.
-    """
-    from dubai_re_calc.benchmarks import get_area_options  # type: ignore[import]
-
+def test_areas_values_are_valid_alias_keys(tmp_path):
+    """AC-A1.5: list_areas value keys are valid keys in the data-service alias map."""
+    from re_data.market.aliases import _AREA_ALIASES
     from re_data.market.areas import list_areas
 
-    snapshot, _ = _setup_fixture(tmp_path)
+    write_dld_csv(tmp_path / "Transactions.csv", JVC_ROWS)
+    settings = make_settings(tmp_path, benchmarks_paths=str(tmp_path / "Transactions.csv"))
+    snapshot = run_ingest(settings)
     ds_items, _ = list_areas(snapshot)
     ds_values = {i["value"] for i in ds_items}
 
-    # get_area_options returns the static alias-map set; transaction set is a subset
-    core_options = get_area_options()
-    _ = {o["value"] for o in core_options}  # available for manual expansion if needed
-
-    # JVC should appear in both
     assert "jvc" in ds_values, "JVC (via fixture rows) should be in data-service areas"
-    # All data-service values must be valid alias keys (present in core's static map
-    # OR be the canonical area name itself when no alias exists)
     for value in ds_values:
-        # value is either a known alias or the canonical area name — both are acceptable
-        assert isinstance(value, str) and value, f"empty or non-string value: {value!r}"
+        assert isinstance(value, str) and value, f"empty/non-string area value: {value!r}"
+        assert value in _AREA_ALIASES or any(v == value for v in _AREA_ALIASES.values()), (
+            f"area value {value!r} not in alias map"
+        )

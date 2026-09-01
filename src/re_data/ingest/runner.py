@@ -9,12 +9,13 @@ from decimal import Decimal
 from re_data.config import Settings
 from re_data.ingest.csv_transactions import (
     file_content_hash,
-    ingest_csv_file,
+    ingest_transaction_file,
     merge_accumulator,
 )
 from re_data.ingest.index import load_residential_sale_index
 from re_data.models.domain import (
     BenchmarkKey,
+    CompRecord,
     DatasetSnapshot,
     DataState,
     DuplicateHashGroup,
@@ -73,6 +74,7 @@ def _compute_state(
 def run_ingest(settings: Settings) -> DatasetSnapshot:
     grouped: dict[BenchmarkKey, list[Decimal]] = {}
     last_dates: dict[BenchmarkKey, str] = {}
+    all_comp_records: list[CompRecord] = []
     files: list[FileIngestReport] = []
     path_hashes: list[tuple[str, str | None]] = []
 
@@ -149,7 +151,7 @@ def run_ingest(settings: Settings) -> DatasetSnapshot:
             continue
 
         try:
-            acc = ingest_csv_file(path, settings)
+            acc = ingest_transaction_file(path, settings)
         except Exception:
             log.warning("CSV ingest failed for %s", path_str, exc_info=True)
             files.append(
@@ -169,7 +171,7 @@ def run_ingest(settings: Settings) -> DatasetSnapshot:
             )
             continue
 
-        merge_accumulator(grouped, last_dates, acc)
+        merge_accumulator(grouped, last_dates, all_comp_records, acc)
         status = _file_status(acc.rows_read, acc.rows_accepted, acc.skip_reasons)
         files.append(
             FileIngestReport(
@@ -270,6 +272,14 @@ def run_ingest(settings: Settings) -> DatasetSnapshot:
     version = _compute_dataset_version(path_hashes)
     state = _compute_state(files, index_configured=index_configured, accepted_rows=accepted_rows)
 
+    # Area-keyed secondary index (ADR-016) — built once, at zero per-request cost.
+    _by_area: dict[str, list[CompRecord]] = {}
+    for _r in all_comp_records:
+        _by_area.setdefault(_r.area, []).append(_r)
+    comp_records_by_area: dict[str, tuple[CompRecord, ...]] = {
+        k: tuple(v) for k, v in _by_area.items()
+    }
+
     return DatasetSnapshot(
         version=version,
         ingested_at=datetime.now(UTC),
@@ -283,6 +293,8 @@ def run_ingest(settings: Settings) -> DatasetSnapshot:
             index_loaded=bool(index_data),
             index_snapshot_count=len(index_data),
             latest_transaction_date=latest_date,
+            comp_record_count=len(all_comp_records),
         ),
         duplicate_content_hashes=duplicate_groups,
+        comp_records_by_area=comp_records_by_area,
     )
