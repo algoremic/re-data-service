@@ -1,0 +1,2351 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Dubai/UAE Real Estate Data Service",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dataset": {
+      "get": {
+        "tags": [
+          "dataset"
+        ],
+        "summary": "Get Dataset",
+        "operationId": "get_dataset_v1_dataset_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetMetadataResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/reload": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Reload Dataset",
+        "operationId": "reload_dataset_v1_admin_reload_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetMetadataResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or malformed bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Bearer token rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Reload already in progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Reload cooldown active",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Admin auth not configured (error: 'Admin reload auth not configured') or ingest timeout (error: 'Dataset reload timed out')",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/market/areas": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Get Areas",
+        "description": "List all areas derived from the transaction dataset, with alias resolution.",
+        "operationId": "get_areas_v1_market_areas_get",
+        "parameters": [
+          {
+            "name": "emirate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by emirate (case-insensitive)",
+              "title": "Emirate"
+            },
+            "description": "Filter by emirate (case-insensitive)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AreasListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/market/ppsf": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Get Ppsf",
+        "description": "Look up AED/sqft benchmark with progressive-relaxation fallback.",
+        "operationId": "get_ppsf_v1_market_ppsf_get",
+        "parameters": [
+          {
+            "name": "emirate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Emirate"
+            }
+          },
+          {
+            "name": "area",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Area"
+            }
+          },
+          {
+            "name": "building",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Building"
+            }
+          },
+          {
+            "name": "unit_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unit Type"
+            }
+          },
+          {
+            "name": "bedrooms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "0 or omitted means unspecified",
+              "title": "Bedrooms"
+            },
+            "description": "0 or omitted means unspecified"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PpsfResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/market/index/latest": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Get Index Latest",
+        "description": "Return the latest market index snapshot for the given segment and horizon.",
+        "operationId": "get_index_latest_v1_market_index_latest_get",
+        "parameters": [
+          {
+            "name": "segment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "all",
+                "flat",
+                "villa"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Segment"
+            }
+          },
+          {
+            "name": "horizon",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "monthly",
+                "quarterly",
+                "yearly"
+              ],
+              "type": "string",
+              "default": "yearly",
+              "title": "Horizon"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexLatestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/market/comps": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Get Comps",
+        "description": "Return paginated comparable sale transactions for an area (ADR-016 area-keyed lookup).",
+        "operationId": "get_comps_v1_market_comps_get",
+        "parameters": [
+          {
+            "name": "area",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Area name or alias. Required.",
+              "title": "Area"
+            },
+            "description": "Area name or alias. Required."
+          },
+          {
+            "name": "emirate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Emirate"
+            }
+          },
+          {
+            "name": "unit_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unit Type"
+            }
+          },
+          {
+            "name": "bedrooms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Bedrooms"
+            }
+          },
+          {
+            "name": "building",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Building"
+            }
+          },
+          {
+            "name": "relax",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Relax"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/market/realized-path": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Get Realized Path",
+        "description": "Area/segment median PPSF after sale_date for T+6/12/24 windows.",
+        "operationId": "get_realized_path_v1_market_realized_path_get",
+        "parameters": [
+          {
+            "name": "area",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Area name or alias. Required.",
+              "title": "Area"
+            },
+            "description": "Area name or alias. Required."
+          },
+          {
+            "name": "sale_date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Sale date (YYYY-MM-DD). Required.",
+              "title": "Sale Date"
+            },
+            "description": "Sale date (YYYY-MM-DD). Required."
+          },
+          {
+            "name": "emirate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Emirate"
+            }
+          },
+          {
+            "name": "unit_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unit Type"
+            }
+          },
+          {
+            "name": "bedrooms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Bedrooms"
+            }
+          },
+          {
+            "name": "relax",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Relax"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RealizedPathResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/market/stats/{area}": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Get Area Stats",
+        "description": "Return distribution statistics for an area's comparable sale transactions.",
+        "operationId": "get_area_stats_v1_market_stats__area__get",
+        "parameters": [
+          {
+            "name": "area",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Area"
+            }
+          },
+          {
+            "name": "emirate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Emirate"
+            }
+          },
+          {
+            "name": "unit_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unit Type"
+            }
+          },
+          {
+            "name": "bedrooms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Bedrooms"
+            }
+          },
+          {
+            "name": "relax",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Relax"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AreaStatsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/market/sales-activity": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Get Sales Activity",
+        "description": "Return windowed sale counts by unit_type for one area (no pie shares).",
+        "operationId": "get_sales_activity_v1_market_sales_activity_get",
+        "parameters": [
+          {
+            "name": "area",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 256,
+              "description": "Area name or alias. Required.",
+              "title": "Area"
+            },
+            "description": "Area name or alias. Required."
+          },
+          {
+            "name": "lookback_days",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Inclusive lookback length in days. Must be 180, 365, or 730.",
+              "title": "Lookback Days"
+            },
+            "description": "Inclusive lookback length in days. Must be 180, 365, or 730."
+          },
+          {
+            "name": "emirate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Emirate"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesActivityResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/market/heatmap-activity": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Get Heatmap Activity",
+        "description": "Return per-area sale counts and median PPSF for a shared city window.",
+        "operationId": "get_heatmap_activity_v1_market_heatmap_activity_get",
+        "parameters": [
+          {
+            "name": "lookback_days",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Inclusive lookback length in days. Must be 180, 365, or 730.",
+              "title": "Lookback Days"
+            },
+            "description": "Inclusive lookback length in days. Must be 180, 365, or 730."
+          },
+          {
+            "name": "emirate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "Dubai",
+              "title": "Emirate"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeatmapActivityResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root",
+        "operationId": "root__get",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Settings",
+                "default": {
+                  "benchmarks_csv_paths": "",
+                  "index_csv_path": "",
+                  "dld_area_unit": "sqm",
+                  "ppsf_min": "100",
+                  "ppsf_max": "20000",
+                  "port": 8001,
+                  "app_env": "local",
+                  "redis_url": "",
+                  "market_cache_ttl_s": 900,
+                  "mongo_uri": "",
+                  "mongo_db": "RECALMI",
+                  "mongo_collection_ready": "ready",
+                  "mongo_collection_offplan": "off-plan",
+                  "data_service_token": "",
+                  "max_reload_s": 300.0,
+                  "admin_reload_cooldown_s": 5.0
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Root  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AreaItem": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "emirate": {
+            "type": "string",
+            "title": "Emirate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "label",
+          "emirate"
+        ],
+        "title": "AreaItem"
+      },
+      "AreaStatsResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "area": {
+            "type": "string",
+            "title": "Area"
+          },
+          "emirate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emirate"
+          },
+          "matched_scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompsMatchedScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transaction_count": {
+            "type": "integer",
+            "title": "Transaction Count",
+            "default": 0
+          },
+          "median_ppsf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Ppsf"
+          },
+          "mean_ppsf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Ppsf"
+          },
+          "p25_ppsf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P25 Ppsf"
+          },
+          "p75_ppsf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P75 Ppsf"
+          },
+          "min_ppsf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Ppsf"
+          },
+          "max_ppsf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Ppsf"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "date_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DateRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "yoy_available": {
+            "type": "boolean",
+            "title": "Yoy Available",
+            "default": false
+          },
+          "yoy_median_ppsf_change_pct": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Yoy Median Ppsf Change Pct"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "DLD public transaction data"
+          },
+          "dataset_version": {
+            "type": "string",
+            "title": "Dataset Version"
+          },
+          "data_state": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "degraded"
+            ],
+            "title": "Data State"
+          },
+          "yoy_p25_ppsf_change_pct": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Yoy P25 Ppsf Change Pct"
+          },
+          "cagr_3y_lower_annual_pct": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cagr 3Y Lower Annual Pct"
+          },
+          "conservative_growth_annual_pct": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conservative Growth Annual Pct"
+          },
+          "growth_suggestion_available": {
+            "type": "boolean",
+            "title": "Growth Suggestion Available",
+            "default": false
+          },
+          "growth_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Growth Method"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "area",
+          "dataset_version",
+          "data_state"
+        ],
+        "title": "AreaStatsResponse"
+      },
+      "AreasListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AreaItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "dataset_version": {
+            "type": "string",
+            "title": "Dataset Version"
+          },
+          "data_state": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "degraded"
+            ],
+            "title": "Data State"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "dataset_version",
+          "data_state"
+        ],
+        "title": "AreasListResponse"
+      },
+      "CompItem": {
+        "properties": {
+          "transaction_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transaction Date"
+          },
+          "price_aed": {
+            "type": "string",
+            "title": "Price Aed"
+          },
+          "size_sqft": {
+            "type": "string",
+            "title": "Size Sqft"
+          },
+          "aed_per_sqft": {
+            "type": "string",
+            "title": "Aed Per Sqft"
+          },
+          "emirate": {
+            "type": "string",
+            "title": "Emirate"
+          },
+          "area": {
+            "type": "string",
+            "title": "Area"
+          },
+          "building": {
+            "type": "string",
+            "title": "Building"
+          },
+          "unit_type": {
+            "type": "string",
+            "title": "Unit Type"
+          },
+          "bedrooms": {
+            "type": "integer",
+            "title": "Bedrooms"
+          },
+          "transaction_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transaction Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "price_aed",
+          "size_sqft",
+          "aed_per_sqft",
+          "emirate",
+          "area",
+          "building",
+          "unit_type",
+          "bedrooms"
+        ],
+        "title": "CompItem"
+      },
+      "CompsMatchedScope": {
+        "properties": {
+          "emirate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emirate"
+          },
+          "area": {
+            "type": "string",
+            "title": "Area"
+          },
+          "unit_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Type"
+          },
+          "bedrooms": {
+            "type": "integer",
+            "title": "Bedrooms",
+            "default": 0
+          },
+          "building": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Building"
+          },
+          "relaxed": {
+            "type": "boolean",
+            "title": "Relaxed",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "area"
+        ],
+        "title": "CompsMatchedScope"
+      },
+      "CompsResponse": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CompItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "matched_scope": {
+            "$ref": "#/components/schemas/CompsMatchedScope"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "DLD public transaction data"
+          },
+          "dataset_version": {
+            "type": "string",
+            "title": "Dataset Version"
+          },
+          "data_state": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "degraded"
+            ],
+            "title": "Data State"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "items",
+          "matched_scope",
+          "dataset_version",
+          "data_state"
+        ],
+        "title": "CompsResponse"
+      },
+      "DatasetMetadataResponse": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "ingested_at": {
+            "type": "string",
+            "title": "Ingested At"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "degraded"
+            ],
+            "title": "State"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FileMetadataResponse"
+            },
+            "type": "array",
+            "title": "Files"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/TotalsResponse"
+          },
+          "duplicate_content_hashes": {
+            "items": {
+              "$ref": "#/components/schemas/DuplicateHashGroupResponse"
+            },
+            "type": "array",
+            "title": "Duplicate Content Hashes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "ingested_at",
+          "state",
+          "files",
+          "totals",
+          "duplicate_content_hashes"
+        ],
+        "title": "DatasetMetadataResponse"
+      },
+      "DateRange": {
+        "properties": {
+          "from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          }
+        },
+        "type": "object",
+        "title": "DateRange"
+      },
+      "DuplicateHashGroupResponse": {
+        "properties": {
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Paths"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content_hash",
+          "paths"
+        ],
+        "title": "DuplicateHashGroupResponse"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "type": "string",
+            "title": "Error"
+          },
+          "details": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Details"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error",
+          "details"
+        ],
+        "title": "ErrorResponse"
+      },
+      "FileMetadataResponse": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "loaded",
+              "missing",
+              "failed",
+              "partial"
+            ],
+            "title": "Status"
+          },
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "dld_transactions",
+                  "recent_transactions",
+                  "generic_comps",
+                  "residential_sale_index",
+                  "unknown"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema"
+          },
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Hash"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          },
+          "rows_read": {
+            "type": "integer",
+            "title": "Rows Read",
+            "default": 0
+          },
+          "rows_accepted": {
+            "type": "integer",
+            "title": "Rows Accepted",
+            "default": 0
+          },
+          "rows_skipped": {
+            "type": "integer",
+            "title": "Rows Skipped",
+            "default": 0
+          },
+          "skip_reasons": {
+            "$ref": "#/components/schemas/SkipReasonsResponse"
+          },
+          "duplicate_content_hash_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duplicate Content Hash Of"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "name",
+          "status"
+        ],
+        "title": "FileMetadataResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "service": {
+            "type": "string",
+            "title": "Service",
+            "default": "re-data-service"
+          },
+          "env": {
+            "type": "string",
+            "title": "Env"
+          },
+          "data_state": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "degraded"
+            ],
+            "title": "Data State"
+          },
+          "dataset_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Version"
+          },
+          "ingested_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingested At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "env",
+          "data_state"
+        ],
+        "title": "HealthResponse"
+      },
+      "HeatmapActivityResponse": {
+        "properties": {
+          "date_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DateRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/HeatmapAreaFact"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "data_state": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "degraded"
+            ],
+            "title": "Data State"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "DLD public transaction data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "data_state"
+        ],
+        "title": "HeatmapActivityResponse"
+      },
+      "HeatmapAreaFact": {
+        "properties": {
+          "area": {
+            "type": "string",
+            "title": "Area"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "transaction_count": {
+            "type": "integer",
+            "title": "Transaction Count"
+          },
+          "median_ppsf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Ppsf"
+          }
+        },
+        "type": "object",
+        "required": [
+          "area",
+          "label",
+          "transaction_count"
+        ],
+        "title": "HeatmapAreaFact"
+      },
+      "IndexLatestResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "segment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segment"
+          },
+          "horizon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Horizon"
+          },
+          "index_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index Value"
+          },
+          "price_index_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Index Value"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "dataset_version": {
+            "type": "string",
+            "title": "Dataset Version"
+          },
+          "data_state": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "degraded"
+            ],
+            "title": "Data State"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "dataset_version",
+          "data_state"
+        ],
+        "title": "IndexLatestResponse"
+      },
+      "MatchedKey": {
+        "properties": {
+          "emirate": {
+            "type": "string",
+            "title": "Emirate"
+          },
+          "area": {
+            "type": "string",
+            "title": "Area"
+          },
+          "building": {
+            "type": "string",
+            "title": "Building"
+          },
+          "unit_type": {
+            "type": "string",
+            "title": "Unit Type"
+          },
+          "bedrooms": {
+            "type": "integer",
+            "title": "Bedrooms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "emirate",
+          "area",
+          "building",
+          "unit_type",
+          "bedrooms"
+        ],
+        "title": "MatchedKey"
+      },
+      "PpsfResponse": {
+        "properties": {
+          "found": {
+            "type": "boolean",
+            "title": "Found"
+          },
+          "aed_per_sqft": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aed Per Sqft"
+          },
+          "sample_size": {
+            "type": "integer",
+            "title": "Sample Size",
+            "default": 0
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "last_updated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Updated"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "matched_key": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MatchedKey"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dataset_version": {
+            "type": "string",
+            "title": "Dataset Version"
+          },
+          "data_state": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "degraded"
+            ],
+            "title": "Data State"
+          }
+        },
+        "type": "object",
+        "required": [
+          "found",
+          "dataset_version",
+          "data_state"
+        ],
+        "title": "PpsfResponse"
+      },
+      "RealizedPathHorizon": {
+        "properties": {
+          "horizon_months": {
+            "type": "integer",
+            "enum": [
+              6,
+              12,
+              24
+            ],
+            "title": "Horizon Months"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "immature",
+              "below_minimum_n"
+            ],
+            "title": "Status"
+          },
+          "median_ppsf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Ppsf"
+          },
+          "sample_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sample Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "horizon_months",
+          "status"
+        ],
+        "title": "RealizedPathHorizon"
+      },
+      "RealizedPathResponse": {
+        "properties": {
+          "area": {
+            "type": "string",
+            "title": "Area"
+          },
+          "sale_date": {
+            "type": "string",
+            "title": "Sale Date"
+          },
+          "anchor_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchor Date"
+          },
+          "horizons": {
+            "items": {
+              "$ref": "#/components/schemas/RealizedPathHorizon"
+            },
+            "type": "array",
+            "title": "Horizons"
+          },
+          "disclaimer": {
+            "type": "string",
+            "title": "Disclaimer"
+          },
+          "matched_scope": {
+            "$ref": "#/components/schemas/CompsMatchedScope"
+          },
+          "dataset_version": {
+            "type": "string",
+            "title": "Dataset Version"
+          },
+          "data_state": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "degraded"
+            ],
+            "title": "Data State"
+          }
+        },
+        "type": "object",
+        "required": [
+          "area",
+          "sale_date",
+          "horizons",
+          "disclaimer",
+          "matched_scope",
+          "dataset_version",
+          "data_state"
+        ],
+        "title": "RealizedPathResponse"
+      },
+      "SalesActivityMatchedScope": {
+        "properties": {
+          "emirate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emirate"
+          },
+          "area": {
+            "type": "string",
+            "title": "Area"
+          }
+        },
+        "type": "object",
+        "required": [
+          "area"
+        ],
+        "title": "SalesActivityMatchedScope"
+      },
+      "SalesActivityResponse": {
+        "properties": {
+          "transaction_count": {
+            "type": "integer",
+            "title": "Transaction Count"
+          },
+          "date_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DateRange"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "window_end_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "area_max",
+                  "dataset_max"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window End Source"
+          },
+          "slices": {
+            "items": {
+              "$ref": "#/components/schemas/SalesActivitySlice"
+            },
+            "type": "array",
+            "title": "Slices"
+          },
+          "below_minimum_n": {
+            "type": "boolean",
+            "title": "Below Minimum N"
+          },
+          "dataset_version": {
+            "type": "string",
+            "title": "Dataset Version"
+          },
+          "data_state": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "degraded"
+            ],
+            "title": "Data State"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "DLD public transaction data"
+          },
+          "matched_scope": {
+            "$ref": "#/components/schemas/SalesActivityMatchedScope"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_count",
+          "slices",
+          "below_minimum_n",
+          "dataset_version",
+          "data_state",
+          "matched_scope"
+        ],
+        "title": "SalesActivityResponse"
+      },
+      "SalesActivitySlice": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "count"
+        ],
+        "title": "SalesActivitySlice"
+      },
+      "Settings": {
+        "properties": {
+          "BENCHMARKS_CSV_PATHS": {
+            "type": "string",
+            "title": "Benchmarks Csv Paths",
+            "default": ""
+          },
+          "INDEX_CSV_PATH": {
+            "type": "string",
+            "title": "Index Csv Path",
+            "default": "/data/Residential_Sale_Index.csv"
+          },
+          "DLD_AREA_UNIT": {
+            "type": "string",
+            "title": "Dld Area Unit",
+            "default": "sqm"
+          },
+          "PPSF_MIN": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Ppsf Min",
+            "default": "100"
+          },
+          "PPSF_MAX": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Ppsf Max",
+            "default": "20000"
+          },
+          "PORT": {
+            "type": "integer",
+            "title": "Port",
+            "default": 8001
+          },
+          "APP_ENV": {
+            "type": "string",
+            "title": "App Env",
+            "default": "local"
+          },
+          "REDIS_URL": {
+            "type": "string",
+            "title": "Redis Url",
+            "default": ""
+          },
+          "MARKET_CACHE_TTL_S": {
+            "type": "integer",
+            "title": "Market Cache Ttl S",
+            "default": 900
+          },
+          "MONGO_URI": {
+            "type": "string",
+            "title": "Mongo Uri",
+            "default": ""
+          },
+          "MONGO_DB": {
+            "type": "string",
+            "title": "Mongo Db",
+            "default": "RECALMI"
+          },
+          "MONGO_COLLECTION_READY": {
+            "type": "string",
+            "title": "Mongo Collection Ready",
+            "default": "ready"
+          },
+          "MONGO_COLLECTION_OFFPLAN": {
+            "type": "string",
+            "title": "Mongo Collection Offplan",
+            "default": "off-plan"
+          },
+          "DATA_SERVICE_TOKEN": {
+            "type": "string",
+            "title": "Data Service Token",
+            "default": ""
+          },
+          "MAX_RELOAD_S": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Max Reload S",
+            "default": 300.0
+          },
+          "ADMIN_RELOAD_COOLDOWN_S": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Admin Reload Cooldown S",
+            "default": 5.0
+          }
+        },
+        "type": "object",
+        "title": "Settings"
+      },
+      "SkipReasonsResponse": {
+        "properties": {
+          "filtered_procedure": {
+            "type": "integer",
+            "title": "Filtered Procedure",
+            "default": 0
+          },
+          "out_of_bounds_ppsf": {
+            "type": "integer",
+            "title": "Out Of Bounds Ppsf",
+            "default": 0
+          },
+          "unparseable": {
+            "type": "integer",
+            "title": "Unparseable",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "SkipReasonsResponse"
+      },
+      "TotalsResponse": {
+        "properties": {
+          "accepted_transaction_rows": {
+            "type": "integer",
+            "title": "Accepted Transaction Rows",
+            "default": 0
+          },
+          "index_loaded": {
+            "type": "boolean",
+            "title": "Index Loaded",
+            "default": false
+          },
+          "index_snapshot_count": {
+            "type": "integer",
+            "title": "Index Snapshot Count",
+            "default": 0
+          },
+          "latest_transaction_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Transaction Date"
+          }
+        },
+        "type": "object",
+        "title": "TotalsResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "opaque",
+        "description": "DATA_SERVICE_TOKEN \u2014 operator-managed shared secret for /v1/admin/* routes"
+      }
+    }
+  }
+}
