@@ -75,3 +75,7 @@ On startup the store loads `BENCHMARKS_CSV_PATHS`. Market routers query the stor
 ## Branches
 
 Feature → `Development` / `dev`. `master` is the default release branch.
+
+## Engineering documentation
+
+[Architecture, API contracts, operating manuals and review findings](docs/engineering-review/README.md) document the reviewed source snapshot and its known limitations.
